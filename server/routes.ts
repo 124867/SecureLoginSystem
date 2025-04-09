@@ -20,31 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Email routes
   
-  // Get emails by folder (inbox, sent, archived, trash, starred)
-  app.get("/api/emails/:folder", isAuthenticated, async (req, res) => {
-    try {
-      // Get user ID from authentication
-      const userId = req.user?.id;
-      if (!userId) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      const { folder } = req.params;
-      const validFolders = ["inbox", "sent", "archived", "trash", "starred"];
-      
-      if (!validFolders.includes(folder)) {
-        return res.status(400).json({ message: "Invalid folder specified" });
-      }
-      
-      const emails = await storage.getUserEmails(userId, folder);
-      res.json(emails);
-    } catch (error) {
-      console.error("Error getting emails:", error);
-      res.status(500).json({ message: "Error retrieving emails" });
-    }
-  });
-
-  // Get a single email by ID
+  // Get a single email by ID (placed first to avoid conflict with folder route)
   app.get("/api/emails/view/:id", isAuthenticated, async (req, res) => {
     try {
       const emailId = parseInt(req.params.id);
@@ -187,6 +163,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get emails by folder (inbox, sent, archived, trash, starred)
+  app.get("/api/emails/:folder", isAuthenticated, async (req, res) => {
+    try {
+      // Get user ID from authentication
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const { folder } = req.params;
+      const validFolders = ["inbox", "sent", "archived", "trash", "starred"];
+      
+      if (!validFolders.includes(folder)) {
+        return res.status(400).json({ message: "Invalid folder specified" });
+      }
+      
+      const emails = await storage.getUserEmails(userId, folder);
+      res.json(emails);
+    } catch (error) {
+      console.error("Error getting emails:", error);
+      res.status(500).json({ message: "Error retrieving emails" });
+    }
+  });
+  
   // Delete an email permanently
   app.delete("/api/emails/:id", isAuthenticated, async (req, res) => {
     try {

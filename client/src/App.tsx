@@ -17,6 +17,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/email" component={EmailPage} />
+      <ProtectedRoute path="/email/:folder" component={EmailPage} />
       <Route component={NotFound} />
     </Switch>
   );
