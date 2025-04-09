@@ -1,15 +1,29 @@
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { 
   ShieldCheck, 
   KeyRound, 
-  Calendar 
+  Calendar
 } from "lucide-react";
 
 export default function HomePage() {
-  const { user, logoutMutation } = useAuth();
+  const { user, logoutMutation, isLoading } = useAuth();
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  // Protected route will handle redirect if user is not logged in
+  if (!user) {
+    return <div>Redirecting to login...</div>;
+  }
+  
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
@@ -26,6 +40,9 @@ export default function HomePage() {
                 <div className="flex items-center gap-4">
                   <Link href="/profile" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900">
                     Profile
+                  </Link>
+                  <Link href="/email" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900">
+                    Email
                   </Link>
                   <Button
                     variant="outline"

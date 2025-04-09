@@ -15,8 +15,9 @@ export default function ProfilePage() {
     );
   }
 
+  // Protected route will handle redirect if user is not logged in
   if (!user) {
-    return null; // Protected route will handle redirect
+    return <div>Redirecting to login...</div>;
   }
 
   return (
@@ -34,6 +35,9 @@ export default function ProfilePage() {
               <div className="flex items-center gap-4">
                 <Link href="/profile" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900">
                   Profile
+                </Link>
+                <Link href="/email" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900">
+                  Email
                 </Link>
                 <Button
                   variant="outline"
