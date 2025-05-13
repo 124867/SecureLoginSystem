@@ -1,68 +1,95 @@
 package com.example.emailapp.controller;
 
+import com.example.emailapp.dto.ApiResponse;
+import com.example.emailapp.dto.JwtAuthResponse;
 import com.example.emailapp.dto.LoginRequest;
 import com.example.emailapp.dto.RegisterRequest;
+import com.example.emailapp.exception.BadRequestException;
 import com.example.emailapp.model.User;
-import com.example.emailapp.service.UserService;
+import com.example.emailapp.repository.UserRepository;
+import com.example.emailapp.security.JwtTokenProvider;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final UserService userService;
+    private final AuthenticationManager authenticationManager;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider tokenProvider;
 
-    public AuthController(UserService userService) {
-        this.userService = userService;
-    }
-
-    @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
-        try {
-            User user = userService.registerUser(registerRequest);
-            
-            // Generate token after registration
-            String jwt = userService.loginUser(new LoginRequest(registerRequest.getUsername(), registerRequest.getPassword()));
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("user", user);
-            response.put("token", jwt);
-            
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public AuthController(AuthenticationManager authenticationManager,
+                         UserRepository userRepository,
+                         PasswordEncoder passwordEncoder,
+                         JwtTokenProvider tokenProvider) {
+        this.authenticationManager = authenticationManager;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.tokenProvider = tokenProvider;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> loginUser(@Valid @RequestBody LoginRequest loginRequest) {
-        try {
-            String jwt = userService.loginUser(loginRequest);
-            User user = userService.getCurrentUser();
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("user", user);
-            response.put("token", jwt);
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
-        }
+    public ResponseEntity<JwtAuthResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getUsername(),
+                        loginRequest.getPassword()
+                )
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        User user = (User) authentication.getPrincipal();
+        String token = tokenProvider.generateToken(authentication);
+        
+        JwtAuthResponse response = new JwtAuthResponse(
+                token, 
+                user.getId(), 
+                user.getUsername(),
+                user.getEmail(),
+                user.getName()
+        );
+        
+        return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/user")
-    public ResponseEntity<?> getCurrentUser() {
-        try {
-            User currentUser = userService.getCurrentUser();
-            return ResponseEntity.ok(currentUser);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
+        // Check if username already exists
+        if (userRepository.existsByUsername(registerRequest.getUsername())) {
+            throw new BadRequestException("Username is already taken!");
         }
+
+        // Check if email already exists
+        if (userRepository.existsByEmail(registerRequest.getEmail())) {
+            throw new BadRequestException("Email is already taken!");
+        }
+
+        // Create new user's account
+        User user = new User();
+        user.setName(registerRequest.getName());
+        user.setUsername(registerRequest.getUsername());
+        user.setEmail(registerRequest.getEmail());
+        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+
+        userRepository.save(user);
+
+        return new ResponseEntity<>(new ApiResponse(true, "User registered successfully"), HttpStatus.CREATED);
+    }
+
+    @GetMapping("/current-user")
+    public ResponseEntity<User> getCurrentUser(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        // Don't return the password
+        user.setPassword(null);
+        return ResponseEntity.ok(user);
     }
 }
