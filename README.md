@@ -1,6 +1,6 @@
 # Email Application - Java Spring Boot
 
-This is an email application with a RESTful API built using Java Spring Boot. The project has been converted from a TypeScript/Node.js application to Java.
+This is an email application with a RESTful API built using Java Spring Boot. 
 
 ## Prerequisites
 
